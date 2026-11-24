@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b4a8a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Embroidery">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Embroidery Tracker</title>
+<style>
+:root{
+  --bg:#f4f3ef; --card:#ffffff; --ink:#1d2330; --mute:#5f6676; --line:#e1ded6;
+  --accent:#2b4a8a; --on-accent:#ffffff;
+  --ok-bg:#dff1e4; --ok:#175c2b;
+  --warn-bg:#fdecc4; --warn:#7a4e00;
+  --bad-bg:#fbdcd8; --bad:#9a1f16;
+  --info-bg:#e1eafa; --info:#1f4a8a;
+  --neutral-bg:#ebe9e2; --neutral:#454b5a;
+  --shadow:0 1px 2px rgba(20,25,40,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#13161d; --card:#1c202b; --ink:#eceef4; --mute:#9aa2b4; --line:#2b3140;
+    --accent:#86a8f2; --on-accent:#10162a;
+    --ok-bg:#183a25; --ok:#8fe0a8;
+    --warn-bg:#47340a; --warn:#f6cf7a;
+    --bad-bg:#4a1e1b; --bad:#ffaaa2;
+    --info-bg:#1d3158; --info:#a9c5fb;
+    --neutral-bg:#292e3b; --neutral:#c3c9d8;
+    --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{min-height:100vh;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+
+.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 14px 0;border-bottom:1px solid var(--line)}
+.row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+h1{font-size:18px;margin:0;letter-spacing:-.01em}
+.iconbtn{width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid var(--line);background:var(--card);flex:none}
+.iconbtn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.searchrow{display:flex;gap:8px;align-items:center}
+.searchrow input[type=text]{flex:1;min-width:0;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);padding:0 12px;font-size:16px}
+.searchrow .go{height:44px;padding:0 16px;border-radius:12px;border:0;background:var(--accent);color:var(--on-accent);font-weight:600}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:12px 0 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 13px;font-size:14px;font-weight:600;color:var(--mute);display:flex;gap:7px;align-items:center;white-space:nowrap}
+.tab .n{min-width:22px;height:22px;border-radius:11px;background:var(--neutral-bg);color:var(--neutral);font-size:12px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px}
+.tab[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.tab[aria-selected=true] .n{background:rgba(255,255,255,.22);color:inherit}
+@media (prefers-color-scheme: dark){.tab[aria-selected=true] .n{background:rgba(0,0,0,.18)}}
+
+#banner{margin:10px 14px 0}
+.note{border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.35;background:var(--warn-bg);color:var(--warn)}
+.note.info{background:var(--info-bg);color:var(--info)}
+
+.summary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 14px 8px;color:var(--mute);font-size:14px}
+.summary b{color:var(--ink)}
+.linkbtn{background:none;border:0;color:var(--accent);font-weight:600;padding:6px 2px;font-size:14px}
+
+#list{padding:0 14px;display:grid;gap:10px}
+.card{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px 14px;box-shadow:var(--shadow);text-align:left;width:100%}
+.card.sel{outline:2px solid var(--accent);outline-offset:-2px}
+.card .main{flex:1;min-width:0}
+.ordno{font-weight:750;font-size:18px;letter-spacing:.01em;font-variant-numeric:tabular-nums}
+.ordno.big{font-size:26px}
+.cust{font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.sub{font-size:13px;color:var(--mute);margin-top:3px}
+.badge{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--neutral-bg);color:var(--neutral);margin-top:4px}
+.badge.s-embroidery{background:var(--info-bg);color:var(--info)}
+.badge.s-done{background:var(--warn-bg);color:var(--warn)}
+.badge.s-shipped{background:var(--ok-bg);color:var(--ok)}
+.pill{flex:none;max-width:50%;text-align:center;border-radius:12px;padding:8px 10px;line-height:1.15}
+.pill b{display:block;font-size:15px;white-space:nowrap}
+.pill span{display:block;font-size:11.5px;margin-top:3px;opacity:.9}
+.ok{background:var(--ok-bg);color:var(--ok)}
+.warn{background:var(--warn-bg);color:var(--warn)}
+.bad{background:var(--bad-bg);color:var(--bad)}
+.info{background:var(--info-bg);color:var(--info)}
+.neutral{background:var(--neutral-bg);color:var(--neutral)}
+.done{background:var(--ok-bg);color:var(--ok)}
+.check{width:24px;height:24px;border-radius:8px;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center}
+.card.sel .check{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.empty{text-align:center;color:var(--mute);padding:42px 24px;line-height:1.5}
+
+.fab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:15;border:0;border-radius:999px;background:var(--accent);color:var(--on-accent);font-weight:700;padding:15px 20px;box-shadow:0 6px 18px rgba(0,0,0,.25);display:flex;gap:8px;align-items:center}
+.fab svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+
+#selbar{position:fixed;left:0;right:0;bottom:0;z-index:18;background:var(--card);border-top:1px solid var(--line);padding:12px 14px calc(12px + env(safe-area-inset-bottom));display:none;gap:10px;align-items:center}
+#selbar.on{display:flex}
+#selbar input[type=date]{height:46px;border-radius:12px;border:1px solid var(--line);background:var(--bg);padding:0 8px;min-width:0}
+#selbar .btn{flex:1}
+
+.btn{display:block;width:100%;min-height:50px;border-radius:14px;border:1px solid var(--line);background:var(--card);font-weight:650;padding:12px 16px}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.danger{color:var(--bad);border-color:var(--bad-bg)}
+.btn[disabled]{opacity:.5}
+
+#backdrop{position:fixed;inset:0;background:rgba(10,12,20,.5);z-index:40;display:none;align-items:flex-end;justify-content:center}
+#backdrop.on{display:flex}
+#sheet{background:var(--bg);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:16px 16px calc(24px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+.sh-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+.x{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:22px;line-height:1}
+.bigdur{border-radius:16px;padding:14px;text-align:center;margin-bottom:14px}
+.bigdur b{display:block;font-size:24px}
+.bigdur span{font-size:13px}
+h2{font-size:20px;margin:0 0 6px}
+.hint{font-size:13px;color:var(--mute);line-height:1.4;margin:4px 0 10px}
+.field{margin:0 0 12px}
+.field label,.lbl{display:block;font-size:13px;font-weight:650;color:var(--mute);margin:0 0 5px}
+.field input,.field select,.field textarea{width:100%;border-radius:12px;border:1px solid var(--line);background:var(--card);padding:11px 12px;font-size:16px;min-height:46px}
+.field textarea{resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 12px;font-size:13.5px;font-weight:600}
+.chip[aria-pressed=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.log{margin:6px 0 16px;padding:0;list-style:none}
+.log li{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.log li span:last-child{color:var(--mute);text-align:right}
+details{margin:0 0 14px}
+summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px;padding:6px 0}
+.switch{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);background:var(--card);border-radius:12px;margin-bottom:12px}
+.switch input{width:22px;height:22px;flex:none}
+.switch div{font-size:14px;line-height:1.35}
+.switch small{display:block;color:var(--mute)}
+.gap{height:10px}
+
+#scan{position:fixed;inset:0;z-index:50;background:#000;display:none;overflow:hidden}
+#scan.on{display:block}
+#scan video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.scanframe{position:absolute;left:8%;right:8%;top:30%;height:22%;border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.38);pointer-events:none}
+.scanbar{position:absolute;left:0;right:0;bottom:0;padding:40px 14px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(0,0,0,.85));color:#fff;display:grid;gap:12px;text-align:center;font-size:15px}
+body.scanning #toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
+#toast{position:fixed;left:14px;right:14px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:60;background:#1d2330;color:#fff;border-radius:14px;padding:12px 14px;display:none;align-items:center;justify-content:space-between;gap:12px;font-size:14.5px;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:560px;margin:0 auto}
+#toast.on{display:flex}
+#toast button{background:none;border:0;color:#9fc0ff;font-weight:700;font-size:14.5px;padding:4px 6px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="row1">
+    <h1>Embroidery Tracker</h1>
+    <button class="iconbtn" data-act="settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </div>
+  <form class="searchrow" id="lookup" autocomplete="off">
+    <input type="text" id="q" placeholder="Scan or type order #" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Order number">
+    <button type="button" class="iconbtn" data-act="scan" aria-label="Scan barcode with camera">
+      <svg viewBox="0 0 24 24"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
+    </button>
+    <input type="file" id="photo" accept="image/*" capture="environment" hidden>
+    <button class="go" type="submit">Go</button>
+  </form>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+</header>
+
+<div id="banner"></div>
+<div id="summary" class="summary"></div>
+<main id="list"></main>
+
+<button class="fab" id="fab" data-act="add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+<div id="selbar"></div>
+<div id="scan" role="dialog" aria-label="Scan barcode"><video id="scanVid" playsinline muted></video><div class="scanframe"></div><div class="scanbar"><div id="scanMsg"></div><button class="btn primary" type="button" data-act="scanclose">Done</button></div></div>
+<div id="backdrop"><div id="sheet" role="dialog" aria-modal="true"></div></div>
+<div id="toast"></div>
+
+<script src="config.js"></script>
+<script>
+(() => {
+'use strict';
+
+// ---------- Status flow ----------
+const ST = [
+  {k:'ready',     tab:'To drop off',   label:'Ready for drop-off',  action:'Mark ready for drop-off', empty:'Nothing is waiting for drop-off.'},
+  {k:'embroidery',tab:'At embroidery', label:'At embroidery',       action:'Dropped at embroidery',   empty:'Nothing is at embroidery right now.'},
+  {k:'done',      tab:'Pick up',       label:'Ready for pickup',    action:'Embroidery complete',     empty:'Nothing is waiting to be picked up.'},
+  {k:'back',      tab:'To ship',       label:'Back, ready to ship', action:'Picked up, back in warehouse', empty:'Nothing is waiting to ship.'},
+  {k:'shipped',   tab:'Shipped',       label:'Shipped',             action:'Shipped',                 empty:'No shipped orders yet.'}
+];
+const ix = k => ST.findIndex(s => s.k === k);
+const ROLES = [
+  {k:'picker', label:'Order picker', tab:'ready'},
+  {k:'driver', label:'Driver', tab:'ready'},
+  {k:'vendor', label:'Embroidery vendor', tab:'embroidery'}
+];
+
+// ---------- Helpers ----------
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const pad = n => String(n).padStart(2, '0');
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); };
+const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+const dnum = s => { const [y,m,d] = s.split('-').map(Number); return Date.UTC(y, m-1, d) / 864e5; };
+const span = (a, b) => Math.round(dnum(b) - dnum(a));
+function fmtDate(s){
+  if(!isDate(s)) return '';
+  const [y,m,d] = s.split('-').map(Number);
+  const o = {month:'short', day:'numeric', timeZone:'UTC'};
+  if(y !== new Date().getFullYear()) o.year = 'numeric';
+  return new Date(Date.UTC(y, m-1, d)).toLocaleDateString('en-US', o);
+}
+function fmtDur(n){
+  n = Math.max(0, n|0);
+  if(n === 0) return 'Today';
+  if(n < 7) return n + (n === 1 ? ' day' : ' days');
+  const w = Math.floor(n / 7), r = n % 7;
+  return w + (w === 1 ? ' week' : ' weeks') + (r ? ', ' + r + (r === 1 ? ' day' : ' days') : '');
+}
+const clone = o => JSON.parse(JSON.stringify(o));
+
+function normId(s){
+  s = String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let m = s.match(/^ORD0*(\d+)$/);
+  if(m) return 'ORD' + m[1].padStart(5, '0');
+  if(/^\d{1,7}$/.test(s)) return 'ORD' + s.padStart(5, '0');
+  return null;
+}
+function extractId(text){
+  const m = String(text || '').toUpperCase().match(/ORD\s*-?\s*0*(\d{1,7})/);
+  if(m) return 'ORD' + m[1].padStart(5, '0');
+  return normId(text);
+}
+
+// ---------- State ----------
+let me = LS.get('et_me', {role:''});
+let quick = LS.get('et_quick', false);
+let tab = LS.get('et_tab', null);
+let orders = {};
+const API = String((window.ET_CONFIG && window.ET_CONFIG.API) || '').replace(/\/$/, '');
+let teamCode = LS.get('et_code', '');
+let loaded = false, canWrite = true, isEditor = true, slow = false;
+let needCode = !teamCode, codeMsg = '';
+let etag = null, polling = false, writeSeq = 0, fails = 0, cameraFailed = false;
+const cfg = {warn:14, alert:21};
+let q = '', sel = new Set(), selMode = false, sheet = null, confirmDel = null;
+let toastTimer = null, chain = Promise.resolve();
+
+if(!ST.some(s => s.k === tab)){
+  const r = ROLES.find(r => r.k === me.role);
+  tab = r ? r.tab : 'embroidery';
+}
+
+// ---------- Metrics ----------
+function metrics(o){
+  const dd = o.d || {}, t = today();
+  const cur = dd[o.status];
+  const sinceCur = isDate(cur) ? Math.max(0, span(cur, t)) : 0;
+  let embDays = null;
+  if(isDate(dd.embroidery)){
+    const end = dd.done || dd.back || dd.shipped || (o.status === 'embroidery' ? t : null);
+    if(isDate(end)) embDays = Math.max(0, span(dd.embroidery, end));
+  }
+  return {sinceCur, embDays};
+}
+function pill(o){
+  const m = metrics(o), dd = o.d || {};
+  switch(o.status){
+    case 'embroidery': {
+      const n = m.embDays == null ? 0 : m.embDays;
+      return {big: fmtDur(n), small: n >= cfg.warn ? 'at embroidery · overdue' : 'at embroidery', cls: n >= cfg.alert ? 'bad' : n >= cfg.warn ? 'warn' : 'ok'};
+    }
+    case 'ready': return {big: fmtDur(m.sinceCur), small:'waiting for drop-off', cls:'neutral'};
+    case 'done':  return {big: fmtDur(m.sinceCur), small:'waiting for pickup', cls:'info'};
+    case 'back':  return {big: fmtDur(m.sinceCur), small:'in warehouse', cls:'neutral'};
+    default:      return {big: fmtDate(dd.shipped) || 'Shipped', small:'shipped', cls:'done'};
+  }
+}
+function subline(o){
+  const dd = o.d || {}, m = metrics(o);
+  const took = m.embDays != null && o.status !== 'embroidery' ? ' · ' + fmtDur(m.embDays) + ' at embroidery' : '';
+  switch(o.status){
+    case 'ready': return 'Ready since ' + fmtDate(dd.ready);
+    case 'embroidery': return 'Dropped off ' + fmtDate(dd.embroidery);
+    case 'done': return 'Done ' + fmtDate(dd.done) + took;
+    case 'back': return 'Back ' + fmtDate(dd.back) + took;
+    default: return 'Shipped ' + fmtDate(dd.shipped) + took;
+  }
+}
+function sortKey(o){
+  const v = (o.d || {})[o.status];
+  return isDate(v) ? dnum(v) : 0;
+}
+
+// ---------- Writes ----------
+function enqueue(fn){
+  const run = chain.then(fn, fn);
+  chain = run.catch(() => {});
+  return run;
+}
+function writeError(e){
+  const c = e && e.code;
+  if(c === 'unauthorized'){ needCode = true; codeMsg = 'That team code didn’t work. Check it and try again.'; render(); if(!sheet || sheet.type !== 'welcome') openSheet({type:'welcome'}); }
+  else if(c === 'network') toast('No connection. Try again when you’re back online.', null, 6000);
+  else toast("Couldn't save. Try again.", null, 6000);
+}
+function entry(k, date){
+  return {s:k, d:date, t:new Date().toISOString()};
+}
+function setStatus(id, k, date){
+  return enqueue(async () => {
+    const o = orders[id];
+    if(!o || !coll) return;
+    const idx = ix(k);
+    // Stepping back to a status it already passed keeps the original date.
+    const keep = idx <= ix(o.status) && isDate((o.d || {})[k]);
+    const useDate = keep ? o.d[k] : date;
+    const patch = {
+      status: k,
+      d: {[k]: useDate},
+      updatedAt: new Date().toISOString(),
+      log: (o.log || []).concat([entry(k, useDate)])
+    };
+    for(let i = idx + 1; i < ST.length; i++) patch.d[ST[i].k] = {__delete__: true};
+    await coll.doc(id).update(patch);
+  }).then(() => true, e => { writeError(e); return false; });
+}
+function updateFields(id, fields){
+  return enqueue(async () => {
+    if(!coll || !orders[id]) return;
+    await coll.doc(id).update(Object.assign({updatedAt:new Date().toISOString()}, fields));
+  }).catch(writeError);
+}
+function restore(id, prev){
+  return enqueue(async () => { await coll.doc(id).set(prev); }).catch(writeError);
+}
+async function advance(id, date, withUndo){
+  const o = orders[id];
+  if(!o) return;
+  const i = ix(o.status);
+  if(i >= ST.length - 1) return;
+  const prev = clone(o); delete prev.id;
+  const next = ST[i+1];
+  const ok = await setStatus(id, next.k, date);
+  if(ok){
+    if(withUndo) toast(id + ' → ' + next.label, {label:'Undo', fn: () => restore(id, prev)});
+    else toast(id + ' → ' + next.label);
+  }
+}
+
+// ---------- Toast ----------
+function toast(msg, undo, ms){
+  const t = $('#toast');
+  t.innerHTML = '<span></span>' + (undo ? '<button type="button" id="toastUndo">' + esc(undo.label) + '</button>' : '');
+  t.firstChild.textContent = msg;
+  t.classList.add('on');
+  if(undo) $('#toastUndo').onclick = () => { undo.fn(); t.classList.remove('on'); };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), ms || (undo ? 7000 : 3500));
+}
+
+// ---------- Rendering ----------
+function render(){
+  renderTabs(); renderBanner(); renderList(); renderSelBar();
+  $('#fab').style.display = selMode || sheet ? 'none' : 'flex';
+  if(sheet && sheet.type === 'order' && !sheetBusy()) renderSheet();
+}
+function renderTabs(){
+  const counts = {};
+  Object.values(orders).forEach(o => counts[o.status] = (counts[o.status] || 0) + 1);
+  const html = ST.map(s => `<button class="tab" role="tab" data-tab="${s.k}" aria-selected="${!q.trim() && tab === s.k}">${esc(s.tab)}<span class="n">${counts[s.k] || 0}</span></button>`).join('');
+  if($('#tabs').dataset.h !== html){ $('#tabs').innerHTML = html; $('#tabs').dataset.h = html; }
+}
+function renderBanner(){
+  let h = '';
+  if(needCode) h = '<div class="note">Enter the team code to see the order list.</div>';
+  else if(slow && !loaded) h = '<div class="note">Can’t reach the server yet…</div>';
+  else if(slow) h = '<div class="note">Offline. Showing the last list this phone saw. Changes can’t be saved until you’re back online.</div>';
+  $('#banner').innerHTML = h;
+}
+function cardHtml(o, showBadge){
+  const p = pill(o);
+  const meta = [o.customer, o.note].filter(Boolean).join(' · ');
+  return `<button class="card ${sel.has(o.id) ? 'sel' : ''}" data-card="${esc(o.id)}">
+    ${selMode ? `<span class="check">${sel.has(o.id) ? '✓' : ''}</span>` : ''}
+    <span class="main">
+      <span class="ordno">${esc(o.id)}</span>
+      ${meta ? `<span class="cust" style="display:block">${esc(meta)}</span>` : ''}
+      <span class="sub" style="display:block">${esc(subline(o))}</span>
+      ${showBadge ? `<span class="badge s-${esc(o.status)}">${esc((ST[ix(o.status)] || ST[0]).label)}</span>` : ''}
+    </span>
+    <span class="pill ${p.cls}"><b>${esc(p.big)}</b><span>${esc(p.small)}</span></span>
+  </button>`;
+}
+function renderList(){
+  const all = Object.values(orders).filter(o => ix(o.status) >= 0);
+  const needle = q.trim().toUpperCase();
+  let items, sum = '';
+  if(needle){
+    items = all.filter(o => o.id.includes(needle) || (o.customer || '').toUpperCase().includes(needle) || (o.note || '').toUpperCase().includes(needle))
+      .sort((a, b) => ix(a.status) - ix(b.status) || sortKey(a) - sortKey(b));
+    sum = `<span><b>${items.length}</b> match${items.length === 1 ? '' : 'es'} for “${esc(q.trim())}”</span><span></span>`;
+  } else {
+    items = all.filter(o => o.status === tab);
+    items.sort((a, b) => tab === 'shipped' ? sortKey(b) - sortKey(a) : sortKey(a) - sortKey(b));
+    if(tab === 'embroidery' && items.length){
+      const od = items.filter(o => (metrics(o).embDays || 0) >= cfg.warn).length;
+      const oldest = metrics(items[0]).embDays || 0;
+      sum = `<span><b>${items.length}</b> at embroidery · oldest <b>${esc(fmtDur(oldest))}</b>${od ? ` · <b>${od}</b> overdue` : ''}</span>`;
+    } else if(items.length){
+      sum = `<span><b>${items.length}</b> order${items.length === 1 ? '' : 's'}</span>`;
+    }
+    sum += items.length && canWrite && tab !== 'shipped' ? `<button class="linkbtn" data-act="select">${selMode ? 'Cancel' : 'Select'}</button>` : '<span></span>';
+  }
+  $('#summary').innerHTML = sum;
+  if(needCode && !loaded){ $('#list').innerHTML = '<div class="empty">Enter the team code to get started.</div>'; return; }
+  if(!loaded){ $('#list').innerHTML = '<div class="empty">Loading orders…</div>'; return; }
+  if(!items.length){
+    let msg;
+    if(needle) msg = 'No orders match. Press Go to add it as a new order.';
+    else if(!all.length) msg = 'No orders yet.<br>Tap <b>Add</b> to enter the orders that are at embroidery right now.';
+    else msg = esc(ST[ix(tab)].empty);
+    $('#list').innerHTML = `<div class="empty">${msg}</div>`;
+    return;
+  }
+  $('#list').innerHTML = items.map(o => cardHtml(o, !!needle)).join('');
+}
+function renderSelBar(){
+  const b = $('#selbar');
+  if(!selMode || q.trim()){ b.classList.remove('on'); b.innerHTML = ''; return; }
+  const i = ix(tab), nxt = ST[i + 1];
+  const n = sel.size;
+  if(!nxt){ b.classList.remove('on'); return; }
+  const d = $('#selDate') ? $('#selDate').value : today();
+  b.classList.add('on');
+  b.innerHTML = `<button class="linkbtn" data-act="selall">All</button>
+    <input type="date" id="selDate" value="${esc(d || today())}" aria-label="Date">
+    <button class="btn primary" data-act="bulk" ${n ? '' : 'disabled'}>${esc(nxt.action)} (${n})</button>`;
+}
+
+// ---------- Sheets ----------
+function sheetBusy(){
+  const a = document.activeElement;
+  return a && $('#sheet').contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName);
+}
+function openSheet(s){ sheet = s; confirmDel = null; renderSheet(); $('#backdrop').classList.add('on'); $('#sheet').scrollTop = 0; $('#fab').style.display = 'none'; }
+function closeSheet(){ sheet = null; confirmDel = null; $('#backdrop').classList.remove('on'); render(); }
+function renderSheet(){
+  const el = $('#sheet');
+  if(!sheet) return;
+  if(sheet.type === 'order') el.innerHTML = orderSheet(sheet.id);
+  else if(sheet.type === 'add') el.innerHTML = addSheet(sheet.prefill || {});
+  else if(sheet.type === 'settings') el.innerHTML = settingsSheet(false);
+  else if(sheet.type === 'welcome') el.innerHTML = settingsSheet(true);
+  if(sheet.type === 'add') updateAddCount();
+}
+function orderSheet(id){
+  const o = orders[id];
+  if(!o) return '<div class="empty">This order was removed.</div><button class="btn" data-act="close">Close</button>';
+  const idx = ix(o.status), nxt = ST[idx + 1], p = pill(o), dd = o.d || {};
+  const log = (o.log || []).slice().reverse();
+  let h = `<div class="sh-head"><div><div class="ordno big">${esc(id)}</div><span class="badge s-${esc(o.status)}">${esc(ST[idx].label)}</span></div><button class="x" data-act="close" aria-label="Close">×</button></div>
+  <div class="bigdur ${p.cls}"><b>${esc(p.big)}</b><span>${esc(p.small)}</span></div>
+  <div class="hint" style="margin-top:-6px;text-align:center">${esc(subline(o))}</div>`;
+  if(canWrite){
+    h += `<div class="field"><label for="actDate">Date</label><input type="date" id="actDate" value="${today()}"></div>`;
+    if(nxt) h += `<button class="btn primary" data-act="advance" data-id="${esc(id)}">${esc(nxt.action)}</button><div class="gap"></div>`;
+    h += `<div class="lbl">Change status manually (uses the date above)</div><div class="chips">` +
+      ST.map(s => `<button class="chip" data-act="setstatus" data-k="${s.k}" data-id="${esc(id)}" aria-pressed="${s.k === o.status}">${esc(s.tab)}</button>`).join('') + `</div>
+      <div class="two"><div class="field"><label for="fCust">Customer</label><input id="fCust" data-field="customer" value="${esc(o.customer || '')}" maxlength="80"></div>
+      <div class="field"><label for="fNote">Note</label><input id="fNote" data-field="note" value="${esc(o.note || '')}" maxlength="120"></div></div>
+      <details><summary>Fix the date for “${esc(ST[idx].tab)}”</summary>
+        <div class="field"><input type="date" id="fixDate" data-fix="${esc(o.status)}" value="${esc(isDate(dd[o.status]) ? dd[o.status] : today())}"></div>
+      </details>`;
+  }
+  h += `<div class="lbl">History</div><ul class="log">` +
+    (log.length ? log.map(e => `<li><span>${esc((ST[ix(e.s)] || {label:e.s}).label)}</span><span>${esc(fmtDate(e.d))}</span></li>`).join('') : '<li><span>No history yet</span><span></span></li>') + `</ul>`;
+  if(isEditor) h += `<button class="btn danger" data-act="delete" data-id="${esc(id)}">${confirmDel === id ? 'Tap again to delete for good' : 'Delete order'}</button>`;
+  return h;
+}
+function addSheet(pre){
+  const st = pre.status || 'ready';
+  return `<div class="sh-head"><h2>Add orders</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+  <div class="hint">One order per line. Put the customer after the number if you like, e.g. <b>1828 Regina Public Schools</b>.</div>
+  <div class="field"><textarea id="addTxt" rows="5" placeholder="ORD01828&#10;ORD01830 U of R" autocapitalize="characters" spellcheck="false">${esc(pre.text || '')}</textarea></div>
+  <div class="two">
+    <div class="field"><label for="addStatus">Status</label><select id="addStatus">${ST.map(s => `<option value="${s.k}" ${s.k === st ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</select></div>
+    <div class="field"><label for="addDate">Date it got there</label><input type="date" id="addDate" value="${today()}"></div>
+  </div>
+  <div class="hint">For orders already at embroidery, pick “At embroidery” and the day they were dropped off.</div>
+  <div class="hint" id="addCount"></div>
+  <button class="btn primary" data-act="addsubmit" id="addGo">Add orders</button>`;
+}
+function parseLines(txt){
+  const out = [], seen = new Set(); let bad = 0;
+  String(txt || '').split(/\n|;/).forEach(line => {
+    line = line.trim(); if(!line) return;
+    const m = line.match(/^(ORD\s*-?\s*\d+|\d+)\s*[,\t:;-]*\s*(.*)$/i);
+    const id = m ? normId(m[1]) : null;
+    if(!id){ bad++; return; }
+    if(seen.has(id)) return;
+    seen.add(id);
+    out.push({id, customer: (m[2] || '').trim().slice(0, 80)});
+  });
+  return {rows: out, bad};
+}
+function updateAddCount(){
+  const t = $('#addTxt'); if(!t) return;
+  const {rows, bad} = parseLines(t.value);
+  const dup = rows.filter(r => orders[r.id]).length;
+  const n = rows.length - dup;
+  let s = n + ' new order' + (n === 1 ? '' : 's');
+  if(dup) s += ' · ' + dup + ' already in the system (skipped)';
+  if(bad) s += ' · ' + bad + ' line' + (bad === 1 ? '' : 's') + ' not recognised';
+  $('#addCount').textContent = s;
+  $('#addGo').disabled = n === 0 || !canWrite;
+}
+function settingsSheet(welcome){
+  const roleOpts = '<option value="">Choose…</option>' + ROLES.map(r => `<option value="${r.k}" ${me.role === r.k ? 'selected' : ''}>${esc(r.label)}</option>`).join('');
+  return `<div class="sh-head"><h2>${welcome ? 'Welcome' : 'Settings'}</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+  ${welcome ? '<div class="hint">Enter the team code you were given, then pick your role so the app opens on the list you use most.</div>' : ''}
+  ${codeMsg ? `<div class="note" style="margin-bottom:12px">${esc(codeMsg)}</div>` : ''}
+  <div class="field"><label for="meCode">Team code</label><input id="meCode" value="${esc(teamCode)}" placeholder="XXXX-XXXX" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="20"></div>
+  <div class="field"><label for="meRole">Your role</label><select id="meRole">${roleOpts}</select></div>
+  <label class="switch"><input type="checkbox" id="meQuick" ${quick ? 'checked' : ''}><div>Quick-advance scans<small>Scanning an order moves it straight to its next status (with Undo).</small></div></label>
+  <button class="btn primary" data-act="saveprofile">${welcome ? 'Start' : 'Save'}</button>
+  ${welcome ? '' : `<div class="gap"></div><div class="gap"></div>
+  <div class="lbl">Export</div>
+  <button class="btn" data-act="copycsv">Copy all orders as CSV</button>
+  <div id="csvOut"></div>`}`;
+}
+function csv(){
+  const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const head = ['Order','Customer','Note','Status','Ready','At embroidery','Embroidery complete','Back in warehouse','Shipped','Days at embroidery'];
+  const rows = Object.values(orders).sort((a, b) => a.id.localeCompare(b.id)).map(o => {
+    const d = o.d || {}, m = metrics(o);
+    return [o.id, o.customer, o.note, (ST[ix(o.status)] || {}).label, d.ready, d.embroidery, d.done, d.back, d.shipped, m.embDays == null ? '' : m.embDays].map(cell).join(',');
+  });
+  return [head.map(cell).join(',')].concat(rows).join('\n');
+}
+
+// ---------- Actions ----------
+async function doAdd(){
+  const {rows} = parseLines($('#addTxt').value);
+  const status = $('#addStatus').value, date = $('#addDate').value;
+  if(!isDate(date)){ toast('Pick a date.'); return; }
+  const fresh = rows.filter(r => !orders[r.id]);
+  if(!fresh.length) return;
+  $('#addGo').disabled = true; $('#addGo').textContent = 'Adding…';
+  let done = 0, failed = false;
+  for(const r of fresh){
+    const ok = await enqueue(async () => {
+      const now = new Date().toISOString();
+      await coll.doc(r.id).set({customer: r.customer, note: '', status, d: {[status]: date}, createdAt: now, updatedAt: now, log: [entry(status, date)]});
+    }).then(() => true, e => { writeError(e); return false; });
+    if(!ok){ failed = true; break; }
+    done++;
+  }
+  if(done){ tab = status; LS.set('et_tab', tab); q = ''; $('#q').value = ''; }
+  if(!failed || done) closeSheet();
+  else { $('#addGo').disabled = false; $('#addGo').textContent = 'Add orders'; }
+  if(done) toast(done + ' order' + (done === 1 ? '' : 's') + ' added');
+}
+function handleScan(id){
+  const o = orders[id];
+  if(o){
+    if(quick && canWrite && ix(o.status) < ST.length - 1){ tab = o.status; advance(id, today(), true); }
+    else openSheet({type:'order', id});
+  } else {
+    if(!canWrite){ toast(id + ' isn’t in the system.'); return; }
+    openSheet({type:'add', prefill:{text:id, status:'ready'}});
+  }
+}
+function doLookup(){
+  const text = $('#q').value;
+  if(!text.trim()) return;
+  const id = extractId(text);
+  if(!id){ toast('That doesn’t look like an order number.'); return; }
+  $('#q').value = ''; q = '';
+  handleScan(id);
+  render();
+}
+let zxP = null;
+function loadZX(){
+  if(window.ZXing) return Promise.resolve();
+  if(zxP) return zxP;
+  zxP = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js';
+    s.onload = res; s.onerror = () => { zxP = null; rej(new Error('load')); };
+    document.head.appendChild(s);
+  });
+  return zxP;
+}
+async function scanFile(file){
+  toast('Reading barcode…', null, 9000);
+  let text = null;
+  try{
+    if('BarcodeDetector' in window){
+      const bmp = await createImageBitmap(file);
+      const r = await new BarcodeDetector().detect(bmp);
+      if(r.length) text = r[0].rawValue;
+    }
+  }catch(e){}
+  if(!text){
+    try{
+      await loadZX();
+      const url = URL.createObjectURL(file);
+      try{ text = (await new window.ZXing.BrowserMultiFormatReader().decodeFromImageUrl(url)).getText(); }
+      finally{ URL.revokeObjectURL(url); }
+    }catch(e){}
+  }
+  const id = text ? extractId(text) : null;
+  if(!id){ toast('Couldn’t read a barcode. Get closer and try again, or type the number.', null, 5000); return; }
+  $('#toast').classList.remove('on');
+  handleScan(id);
+  render();
+}
+
+// ---------- Events ----------
+document.addEventListener('click', async ev => {
+  const t = ev.target.closest('[data-tab],[data-card],[data-act]');
+  if(ev.target.id === 'backdrop'){ closeSheet(); return; }
+  if(!t) return;
+  if(t.dataset.tab){
+    tab = t.dataset.tab; LS.set('et_tab', tab); q = ''; $('#q').value = ''; selMode = false; sel.clear(); render();
+    return;
+  }
+  if(t.dataset.card){
+    const id = t.dataset.card;
+    if(selMode){ sel.has(id) ? sel.delete(id) : sel.add(id); render(); }
+    else openSheet({type:'order', id});
+    return;
+  }
+  const a = t.dataset.act, id = t.dataset.id;
+  switch(a){
+    case 'close': closeSheet(); break;
+    case 'scan': openScanner(); break;
+    case 'scanclose': closeScanner(); break;
+    case 'settings': openSheet({type:'settings'}); break;
+    case 'add': if(!canWrite){ toast('You have view-only access.'); break; } openSheet({type:'add', prefill:{status: tab}}); break;
+    case 'select': selMode = !selMode; sel.clear(); render(); break;
+    case 'selall': {
+      const ids = Object.values(orders).filter(o => o.status === tab).map(o => o.id);
+      if(sel.size === ids.length) sel.clear(); else ids.forEach(i => sel.add(i));
+      render(); break;
+    }
+    case 'bulk': {
+      const date = $('#selDate').value;
+      if(!isDate(date) || !sel.size) break;
+      const ids = Array.from(sel); let n = 0;
+      $('#selbar').querySelector('.btn').disabled = true;
+      for(const i of ids){ if(orders[i] && await setStatus(i, ST[ix(orders[i].status) + 1].k, date)) n++; else break; }
+      selMode = false; sel.clear(); render();
+      if(n) toast(n + ' order' + (n === 1 ? '' : 's') + ' → ' + ST[ix(tab) + 1].label);
+      break;
+    }
+    case 'advance': {
+      const d = $('#actDate').value;
+      if(!isDate(d)){ toast('Pick a date.'); break; }
+      await advance(id, d, false); break;
+    }
+    case 'setstatus': {
+      const o = orders[id]; if(!o || o.status === t.dataset.k) break;
+      const prev = clone(o); delete prev.id;
+      const dEl = $('#actDate'); const d = dEl && isDate(dEl.value) ? dEl.value : today();
+      if(await setStatus(id, t.dataset.k, d)) toast(id + ' → ' + ST[ix(t.dataset.k)].label, {label:'Undo', fn: () => restore(id, prev)});
+      break;
+    }
+    case 'delete':
+      if(confirmDel !== id){ confirmDel = id; renderSheet(); break; }
+      await enqueue(() => coll.doc(id).delete()).then(() => { closeSheet(); toast(id + ' deleted'); }, writeError);
+      break;
+    case 'addsubmit': doAdd(); break;
+    case 'saveprofile': {
+      const code = $('#meCode').value.trim();
+      if(!code){ toast('Enter the team code.'); break; }
+      const changedCode = code !== teamCode;
+      me = {role: $('#meRole').value};
+      quick = $('#meQuick').checked;
+      LS.set('et_me', me); LS.set('et_quick', quick);
+      teamCode = code; LS.set('et_code', teamCode);
+      needCode = false; codeMsg = '';
+      if(changedCode){ etag = null; loaded = false; orders = {}; }
+      setTimeout(() => poll(true), 0);
+      const r = ROLES.find(r => r.k === me.role);
+      if(sheet && sheet.type === 'welcome' && r){ tab = r.tab; LS.set('et_tab', tab); }
+      closeSheet(); break;
+    }
+    case 'copycsv': {
+      const text = csv();
+      let ok = false;
+      try{ await navigator.clipboard.writeText(text); ok = true; }catch(e){}
+      if(ok) toast('Copied. Paste into Excel or Sheets.');
+      else { $('#csvOut').innerHTML = '<div class="field" style="margin-top:10px"><textarea rows="6" readonly id="csvTa"></textarea></div><div class="hint">Select all and copy.</div>'; $('#csvTa').value = text; $('#csvTa').focus(); $('#csvTa').select(); }
+      break;
+    }
+  }
+});
+document.addEventListener('change', ev => {
+  const t = ev.target;
+  if(t.dataset && t.dataset.field && sheet && sheet.type === 'order'){
+    const o = orders[sheet.id];
+    const v = t.value.trim();
+    if(o && (o[t.dataset.field] || '') !== v) updateFields(sheet.id, {[t.dataset.field]: v});
+  }
+  if(t.dataset && t.dataset.fix && sheet && sheet.type === 'order' && isDate(t.value)){
+    updateFields(sheet.id, {d: {[t.dataset.fix]: t.value}});
+    toast('Date updated');
+  }
+});
+document.addEventListener('input', ev => {
+  if(ev.target.id === 'addTxt') updateAddCount();
+});
+$('#q').addEventListener('input', e => { q = e.target.value; selMode = false; sel.clear(); renderTabs(); renderList(); renderSelBar(); });
+$('#lookup').addEventListener('submit', e => { e.preventDefault(); doLookup(); });
+$('#photo').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if(f) scanFile(f); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && sheet) closeSheet(); });
+document.addEventListener('visibilitychange', () => { if(document.hidden) closeScanner(); else { render(); poll(); } });
+setInterval(() => { if(!document.hidden && !sheetBusy()) render(); }, 5 * 60 * 1000);
+
+// ---------- Data (shared list lives on the server) ----------
+async function call(method, path, body, headers){
+  let res;
+  try{
+    res = await fetch(API + path, {
+      method,
+      headers: Object.assign({'X-Team-Code': teamCode}, body ? {'Content-Type': 'application/json'} : {}, headers || {}),
+      body: body ? JSON.stringify(body) : undefined
+    });
+  }catch(e){ const err = new Error('network'); err.code = 'network'; throw err; }
+  if(res.status === 401){ const err = new Error('unauthorized'); err.code = 'unauthorized'; throw err; }
+  if(res.status !== 304 && !res.ok){ const err = new Error('http ' + res.status); err.code = 'http'; throw err; }
+  return res;
+}
+function mergePatch(a, b){
+  const o = a && typeof a === 'object' && !Array.isArray(a) ? Object.assign({}, a) : {};
+  Object.keys(b).forEach(k => {
+    const v = b[k];
+    if(v && typeof v === 'object' && v.__delete__) delete o[k];
+    else if(v && typeof v === 'object' && !Array.isArray(v)) o[k] = mergePatch(o[k], v);
+    else o[k] = v;
+  });
+  return o;
+}
+function saveCache(){ LS.set('et_cache', Object.values(orders)); }
+function mkColl(){
+  return {doc(id){
+    const path = '/api/orders/' + encodeURIComponent(id);
+    const put = async body => {
+      writeSeq++;
+      try{ await call('PUT', path, body); }finally{ writeSeq++; }
+      orders = Object.assign({}, orders, {[id]: Object.assign({}, body, {id})});
+      etag = null; saveCache(); render();
+    };
+    return {
+      set: async d => { const body = clone(d); delete body.id; await put(body); },
+      update: async patch => {
+        const base = orders[id];
+        if(!base){ const e = new Error('missing'); e.code = 'invalid_argument'; throw e; }
+        const cur = clone(base); delete cur.id;
+        await put(mergePatch(cur, patch));
+      },
+      delete: async () => {
+        writeSeq++;
+        try{ await call('DELETE', path); }finally{ writeSeq++; }
+        const n = Object.assign({}, orders); delete n[id]; orders = n;
+        etag = null; saveCache(); render();
+      }
+    };
+  }};
+}
+async function poll(force){
+  if(polling || needCode || !API) return;
+  polling = true;
+  const seq = writeSeq;
+  try{
+    const res = await call('GET', '/api/orders', null, etag && !force ? {'If-None-Match': etag} : null);
+    fails = 0; slow = false;
+    if(seq === writeSeq){
+      if(res.status === 200){
+        const j = await res.json();
+        const next = {};
+        (j.orders || []).forEach(o => { if(o && o.id) next[o.id] = o; });
+        orders = next; etag = res.headers.get('ETag'); saveCache();
+      }
+      loaded = true;
+    }
+  }catch(e){
+    if(e.code === 'unauthorized'){
+      needCode = true; codeMsg = 'That team code didn’t work. Check it and try again.';
+      if(!sheet || sheet.type !== 'welcome') openSheet({type:'welcome'});
+    } else { fails++; if(fails >= 2) slow = true; }
+  }finally{
+    polling = false; render();
+  }
+}
+
+// ---------- Live barcode scanner ----------
+let scanStream = null, scanTimer = null, zxReader = null, lastScan = {id:'', t:0}, lastBad = 0;
+async function openScanner(){
+  if(cameraFailed || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){ $('#photo').click(); return; }
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 1280}, height: {ideal: 720}}, audio: false});
+  }catch(e){
+    cameraFailed = true;
+    toast('Camera isn’t allowed. Allow it in your browser settings, or tap the camera again to take a photo instead.', null, 7000);
+    return;
+  }
+  lastScan = {id:'', t:0};
+  const v = $('#scanVid');
+  v.srcObject = scanStream;
+  try{ await v.play(); }catch(e){}
+  $('#scan').classList.add('on'); document.body.classList.add('scanning');
+  $('#scanMsg').textContent = 'Point the camera at the barcode on the picking slip';
+  startDetect(v);
+}
+async function startDetect(v){
+  let det = null;
+  if('BarcodeDetector' in window){ try{ det = new BarcodeDetector(); }catch(e){} }
+  if(det){
+    const tick = async () => {
+      if(!scanStream) return;
+      try{
+        if(v.readyState >= 2){ const r = await det.detect(v); if(r.length) onCode(r[0].rawValue); }
+      }catch(e){ det = null; startZX(v); return; }
+      scanTimer = setTimeout(tick, 180);
+    };
+    tick();
+  } else startZX(v);
+}
+async function startZX(v){
+  try{
+    await loadZX();
+    zxReader = new window.ZXing.BrowserMultiFormatReader();
+    zxReader.decodeFromStream(scanStream, v, res => { if(res) onCode(res.getText()); });
+  }catch(e){
+    closeScanner(); cameraFailed = true;
+    toast('The scanner couldn’t start on this phone. Tap the camera for a photo, or type the number.', null, 7000);
+  }
+}
+function onCode(text){
+  const id = extractId(text), now = Date.now();
+  if(!id){
+    if(now - lastBad > 2500){ lastBad = now; $('#scanMsg').textContent = 'Not an order number: ' + String(text).slice(0, 24); }
+    return;
+  }
+  if(id === lastScan.id && now - lastScan.t < 3000) return;
+  lastScan = {id, t: now};
+  try{ navigator.vibrate && navigator.vibrate(60); }catch(e){}
+  const o = orders[id];
+  if(quick && canWrite && o && ix(o.status) < ST.length - 1){
+    $('#scanMsg').textContent = id + ' ✓  keep scanning, or tap Done';
+    handleScan(id);
+  } else { closeScanner(); handleScan(id); }
+  render();
+}
+function closeScanner(){
+  clearTimeout(scanTimer); scanTimer = null;
+  try{ zxReader && zxReader.reset(); }catch(e){}
+  zxReader = null;
+  if(scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  const v = $('#scanVid'); if(v) v.srcObject = null;
+  $('#scan').classList.remove('on'); document.body.classList.remove('scanning');
+}
+
+// ---------- Start ----------
+let coll = null;
+function init(){
+  coll = mkColl();
+  const cached = LS.get('et_cache', null);
+  if(Array.isArray(cached) && cached.length){ cached.forEach(o => { if(o && o.id) orders[o.id] = o; }); loaded = true; }
+  render();
+  if(needCode || (!me.role && !LS.get('et_welcomed', false))){
+    LS.set('et_welcomed', true);
+    setTimeout(() => { if(!sheet) openSheet({type:'welcome'}); }, 400);
+  }
+  poll(true);
+  setInterval(() => { if(!document.hidden) poll(); }, 8000);
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+init();
+})();
+</script>
+</body>
+</html>
