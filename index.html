@@ -134,7 +134,7 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px;paddin
 #scan{position:fixed;inset:0;z-index:50;background:#000;display:none;overflow:hidden}
 #scan.on{display:block}
 #scan video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.scanframe{position:absolute;left:8%;right:8%;top:30%;height:22%;border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.38);pointer-events:none}
+.scanframe{position:absolute;left:6%;right:6%;top:26%;height:20%;border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.38);pointer-events:none}
 .scanbar{position:absolute;left:0;right:0;bottom:0;padding:40px 14px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(0,0,0,.85));color:#fff;display:grid;gap:12px;text-align:center;font-size:15px}
 body.scanning #toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
 #toast{position:fixed;left:14px;right:14px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:60;background:#1d2330;color:#fff;border-radius:14px;padding:12px 14px;display:none;align-items:center;justify-content:space-between;gap:12px;font-size:14.5px;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:560px;margin:0 auto}
@@ -152,8 +152,8 @@ body.scanning #toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
     </button>
   </div>
   <form class="searchrow" id="lookup" autocomplete="off">
-    <input type="text" id="q" placeholder="Scan or type order #" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Order number">
-    <button type="button" class="iconbtn" data-act="scan" aria-label="Scan barcode with camera">
+    <input type="text" id="q" placeholder="Scan or type SH #" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="SH number">
+    <button type="button" class="iconbtn" data-act="scan" aria-label="Scan the SH number with the camera">
       <svg viewBox="0 0 24 24"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
     </button>
     <input type="file" id="photo" accept="image/*" capture="environment" hidden>
@@ -168,7 +168,7 @@ body.scanning #toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
 
 <button class="fab" id="fab" data-act="add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
 <div id="selbar"></div>
-<div id="scan" role="dialog" aria-label="Scan barcode"><video id="scanVid" playsinline muted></video><div class="scanframe"></div><div class="scanbar"><div id="scanMsg"></div><button class="btn primary" type="button" data-act="scanclose">Done</button></div></div>
+<div id="scan" role="dialog" aria-label="Scan SH number"><video id="scanVid" playsinline muted></video><div class="scanframe"></div><div class="scanbar"><div id="scanMsg"></div><button class="btn primary" type="button" data-act="scanclose">Done</button></div></div>
 <div id="backdrop"><div id="sheet" role="dialog" aria-modal="true"></div></div>
 <div id="toast"></div>
 
@@ -220,17 +220,32 @@ function fmtDur(n){
 }
 const clone = o => JSON.parse(JSON.stringify(o));
 
+const ordId = d => 'ORD' + (String(d).replace(/^0+/, '') || '0').padStart(5, '0');
 function normId(s){
   s = String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  let m = s.match(/^ORD0*(\d+)$/);
-  if(m) return 'ORD' + m[1].padStart(5, '0');
-  if(/^\d{1,7}$/.test(s)) return 'ORD' + s.padStart(5, '0');
+  let m = s.match(/^ORD(\d{1,10})$/);
+  if(m) return ordId(m[1]);
+  m = s.match(/^SH(\d{3,10})$/);
+  if(m) return 'SH' + m[1];
+  if(/^\d{3,10}$/.test(s)) return 'SH' + s;
   return null;
 }
 function extractId(text){
-  const m = String(text || '').toUpperCase().match(/ORD\s*-?\s*0*(\d{1,7})/);
-  if(m) return 'ORD' + m[1].padStart(5, '0');
+  const m = String(text || '').toUpperCase().match(/(?<![A-Z])(ORD|SH)\s*-?\s*(\d{3,10})/);
+  if(m) return m[1] === 'ORD' ? ordId(m[2]) : 'SH' + m[2];
   return normId(text);
+}
+// Reads an SH number out of OCR text, tolerating look-alike letters in the digits (O for 0, I for 1, ...).
+function idFromOcr(text){
+  const t = String(text || '').toUpperCase();
+  const re = /(?<![A-Z0-9])S\s?H[\s:.#-]*([0-9OILSB|]{4,10})(?![A-Z0-9])/g;
+  let m;
+  while((m = re.exec(t))){
+    const raw = m[1];
+    if((raw.match(/[0-9]/g) || []).length < 3) continue;
+    return 'SH' + raw.replace(/O/g, '0').replace(/[IL|]/g, '1').replace(/S/g, '5').replace(/B/g, '8');
+  }
+  return null;
 }
 
 // ---------- State ----------
@@ -482,8 +497,8 @@ function orderSheet(id){
 function addSheet(pre){
   const st = pre.status || 'ready';
   return `<div class="sh-head"><h2>Add orders</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
-  <div class="hint">One order per line. Put the customer after the number if you like, e.g. <b>1828 Regina Public Schools</b>.</div>
-  <div class="field"><textarea id="addTxt" rows="5" placeholder="ORD01828&#10;ORD01830 U of R" autocapitalize="characters" spellcheck="false">${esc(pre.text || '')}</textarea></div>
+  <div class="hint">One order per line. Put the customer after the number if you like, e.g. <b>SH100245 Regina Public Schools</b>.</div>
+  <div class="field"><textarea id="addTxt" rows="5" placeholder="SH100245&#10;SH100246 U of R" autocapitalize="characters" spellcheck="false">${esc(pre.text || '')}</textarea></div>
   <div class="two">
     <div class="field"><label for="addStatus">Status</label><select id="addStatus">${ST.map(s => `<option value="${s.k}" ${s.k === st ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</select></div>
     <div class="field"><label for="addDate">Date it got there</label><input type="date" id="addDate" value="${today()}"></div>
@@ -496,7 +511,7 @@ function parseLines(txt){
   const out = [], seen = new Set(); let bad = 0;
   String(txt || '').split(/\n|;/).forEach(line => {
     line = line.trim(); if(!line) return;
-    const m = line.match(/^(ORD\s*-?\s*\d+|\d+)\s*[,\t:;-]*\s*(.*)$/i);
+    const m = line.match(/^((?:ORD|SH)\s*-?\s*\d+|\d+)\s*[,\t:;-]*\s*(.*)$/i);
     const id = m ? normId(m[1]) : null;
     if(!id){ bad++; return; }
     if(seen.has(id)) return;
@@ -576,43 +591,57 @@ function doLookup(){
   const text = $('#q').value;
   if(!text.trim()) return;
   const id = extractId(text);
-  if(!id){ toast('That doesn’t look like an order number.'); return; }
+  if(!id){ toast('That doesn’t look like an SH number.'); return; }
   $('#q').value = ''; q = '';
   handleScan(id);
   render();
 }
-let zxP = null;
-function loadZX(){
-  if(window.ZXing) return Promise.resolve();
-  if(zxP) return zxP;
-  zxP = new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js';
-    s.onload = res; s.onerror = () => { zxP = null; rej(new Error('load')); };
-    document.head.appendChild(s);
+const scriptP = {};
+function loadScript(src){
+  if(scriptP[src]) return scriptP[src];
+  scriptP[src] = new Promise((res, rej) => {
+    const el = document.createElement('script');
+    el.src = src; el.onload = res;
+    el.onerror = () => { delete scriptP[src]; rej(new Error('load')); };
+    document.head.appendChild(el);
   });
-  return zxP;
+  return scriptP[src];
+}
+let ocrP = null;
+function loadOCR(){
+  if(ocrP) return ocrP;
+  ocrP = (async () => {
+    if(!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    const w = await window.Tesseract.createWorker('eng');
+    await w.setParameters({tessedit_char_whitelist: 'SHORD0123456789- ', tessedit_pageseg_mode: '6'});
+    return w;
+  })().catch(e => { ocrP = null; throw e; });
+  return ocrP;
 }
 async function scanFile(file){
-  toast('Reading barcode…', null, 9000);
-  let text = null;
+  toast('Reading the slip…', null, 12000);
+  let id = null;
   try{
     if('BarcodeDetector' in window){
       const bmp = await createImageBitmap(file);
       const r = await new BarcodeDetector().detect(bmp);
-      if(r.length) text = r[0].rawValue;
+      if(r.length) id = extractId(r[0].rawValue);
     }
   }catch(e){}
-  if(!text){
+  if(!id){
     try{
-      await loadZX();
-      const url = URL.createObjectURL(file);
-      try{ text = (await new window.ZXing.BrowserMultiFormatReader().decodeFromImageUrl(url)).getText(); }
-      finally{ URL.revokeObjectURL(url); }
+      const w = await loadOCR();
+      const bmp = await createImageBitmap(file);
+      const k = Math.min(1, 1800 / bmp.width);
+      const c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      const x = c.getContext('2d');
+      try{ x.filter = 'grayscale(1) contrast(1.5)'; }catch(e){}
+      x.drawImage(bmp, 0, 0, c.width, c.height);
+      id = idFromOcr((await w.recognize(c)).data.text);
     }catch(e){}
   }
-  const id = text ? extractId(text) : null;
-  if(!id){ toast('Couldn’t read a barcode. Get closer and try again, or type the number.', null, 5000); return; }
+  if(!id){ toast('Couldn’t find an SH number. Get closer and try again, or type it.', null, 5000); return; }
   $('#toast').classList.remove('on');
   handleScan(id);
   render();
@@ -797,53 +826,87 @@ async function poll(force){
   }
 }
 
-// ---------- Live barcode scanner ----------
-let scanStream = null, scanTimer = null, zxReader = null, lastScan = {id:'', t:0}, lastBad = 0;
+// ---------- Live scanner: reads the SH number printed on the slip (and any barcode) ----------
+let scanStream = null, scanTimer = null, ocrTimer = null, lastScan = {id:'', t:0}, lastBad = 0, ocrSeen = {id:'', n:0};
+const SCAN_HINT = 'Line the SH number up inside the box';
+const setScanMsg = t => { $('#scanMsg').textContent = t; };
 async function openScanner(){
   if(cameraFailed || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){ $('#photo').click(); return; }
   try{
-    scanStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 1280}, height: {ideal: 720}}, audio: false});
+    scanStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 1920}, height: {ideal: 1080}}, audio: false});
   }catch(e){
     cameraFailed = true;
     toast('Camera isn’t allowed. Allow it in your browser settings, or tap the camera again to take a photo instead.', null, 7000);
     return;
   }
-  lastScan = {id:'', t:0};
+  lastScan = {id:'', t:0}; ocrSeen = {id:'', n:0};
   const v = $('#scanVid');
   v.srcObject = scanStream;
   try{ await v.play(); }catch(e){}
   $('#scan').classList.add('on'); document.body.classList.add('scanning');
-  $('#scanMsg').textContent = 'Point the camera at the barcode on the picking slip';
+  setScanMsg(SCAN_HINT);
   startDetect(v);
+  startOCR(v);
 }
-async function startDetect(v){
+function startDetect(v){
+  if(!('BarcodeDetector' in window)) return;
   let det = null;
-  if('BarcodeDetector' in window){ try{ det = new BarcodeDetector(); }catch(e){} }
-  if(det){
-    const tick = async () => {
-      if(!scanStream) return;
-      try{
-        if(v.readyState >= 2){ const r = await det.detect(v); if(r.length) onCode(r[0].rawValue); }
-      }catch(e){ det = null; startZX(v); return; }
-      scanTimer = setTimeout(tick, 180);
-    };
-    tick();
-  } else startZX(v);
+  try{ det = new BarcodeDetector(); }catch(e){ return; }
+  const tick = async () => {
+    if(!scanStream) return;
+    try{
+      if(v.readyState >= 2){ const r = await det.detect(v); if(r.length) onCode(r[0].rawValue); }
+    }catch(e){ return; }
+    scanTimer = setTimeout(tick, 200);
+  };
+  tick();
 }
-async function startZX(v){
-  try{
-    await loadZX();
-    zxReader = new window.ZXing.BrowserMultiFormatReader();
-    zxReader.decodeFromStream(scanStream, v, res => { if(res) onCode(res.getText()); });
-  }catch(e){
-    closeScanner(); cameraFailed = true;
-    toast('The scanner couldn’t start on this phone. Tap the camera for a photo, or type the number.', null, 7000);
-  }
+async function startOCR(v){
+  setScanMsg('Loading the text reader… (first time takes a few seconds)');
+  let w;
+  try{ w = await loadOCR(); }
+  catch(e){ if(scanStream) setScanMsg('Text reading isn’t available right now. Tap Done and type the SH number.'); return; }
+  if(!scanStream) return;
+  setScanMsg(SCAN_HINT);
+  const tick = async () => {
+    if(!scanStream) return;
+    try{
+      const c = cropFrame(v);
+      if(c){ const r = await w.recognize(c); handleOcr(idFromOcr(r.data.text)); }
+    }catch(e){}
+    if(scanStream) ocrTimer = setTimeout(tick, 120);
+  };
+  tick();
+}
+// The part of the camera picture inside the white box, enlarged for reading.
+function cropFrame(v){
+  if(!v.videoWidth) return null;
+  const box = $('.scanframe').getBoundingClientRect(), vr = v.getBoundingClientRect();
+  const sc = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight);
+  const offX = (vr.width - v.videoWidth * sc) / 2, offY = (vr.height - v.videoHeight * sc) / 2;
+  let sx = (box.left - vr.left - offX) / sc, sy = (box.top - vr.top - offY) / sc, sw = box.width / sc, sh = box.height / sc;
+  sx = Math.max(0, sx); sy = Math.max(0, sy);
+  sw = Math.min(v.videoWidth - sx, sw); sh = Math.min(v.videoHeight - sy, sh);
+  if(sw < 20 || sh < 20) return null;
+  const k = Math.min(2.5, 1000 / sw);
+  const c = document.createElement('canvas');
+  c.width = Math.round(sw * k); c.height = Math.round(sh * k);
+  const x = c.getContext('2d');
+  try{ x.filter = 'grayscale(1) contrast(1.5)'; }catch(e){}
+  x.drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return c;
+}
+// A text reading is only trusted once two readings in a row agree.
+function handleOcr(id){
+  if(!id){ ocrSeen = {id:'', n:0}; return; }
+  if(id === ocrSeen.id) ocrSeen.n++; else ocrSeen = {id, n:1};
+  if(ocrSeen.n >= 2){ ocrSeen = {id:'', n:0}; onCode(id); }
+  else setScanMsg('Reading ' + id + '…');
 }
 function onCode(text){
   const id = extractId(text), now = Date.now();
   if(!id){
-    if(now - lastBad > 2500){ lastBad = now; $('#scanMsg').textContent = 'Not an order number: ' + String(text).slice(0, 24); }
+    if(now - lastBad > 2500){ lastBad = now; setScanMsg('Not an SH number: ' + String(text).slice(0, 24)); }
     return;
   }
   if(id === lastScan.id && now - lastScan.t < 3000) return;
@@ -851,15 +914,14 @@ function onCode(text){
   try{ navigator.vibrate && navigator.vibrate(60); }catch(e){}
   const o = orders[id];
   if(quick && canWrite && o && ix(o.status) < ST.length - 1){
-    $('#scanMsg').textContent = id + ' ✓  keep scanning, or tap Done';
+    setScanMsg(id + ' ✓  keep scanning, or tap Done');
     handleScan(id);
   } else { closeScanner(); handleScan(id); }
   render();
 }
 function closeScanner(){
   clearTimeout(scanTimer); scanTimer = null;
-  try{ zxReader && zxReader.reset(); }catch(e){}
-  zxReader = null;
+  clearTimeout(ocrTimer); ocrTimer = null;
   if(scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   const v = $('#scanVid'); if(v) v.srcObject = null;
   $('#scan').classList.remove('on'); document.body.classList.remove('scanning');

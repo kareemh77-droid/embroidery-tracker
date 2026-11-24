@@ -12,8 +12,8 @@ Open the app's web address in Chrome (Android) or Safari (iPhone), then:
 - **Android / Chrome:** menu (⋮) → **Install app** (or **Add to Home screen**).
 - **iPhone / Safari:** Share → **Add to Home Screen**.
 
-The first time it opens, enter the **team code** and pick your role. The camera button scans the
-barcode on the picking slip.
+The first time it opens, enter the **team code** and pick your role. The camera button reads the
+**SH number printed on the picking slip** (it also reads barcodes).
 
 ## How it's built
 

@@ -1,5 +1,5 @@
 // Network-first for the app itself (so updates arrive), cache fallback so it still opens offline.
-const V = 'et-v1';
+const V = 'et-v2';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
