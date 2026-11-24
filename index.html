@@ -152,7 +152,7 @@ body.scanning #toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
     </button>
   </div>
   <form class="searchrow" id="lookup" autocomplete="off">
-    <input type="text" id="q" placeholder="Scan or type SH #" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="SH number">
+    <input type="text" id="q" placeholder="Scan or type SH number" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="SH number">
     <button type="button" class="iconbtn" data-act="scan" aria-label="Scan the SH number with the camera">
       <svg viewBox="0 0 24 24"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
     </button>
@@ -225,24 +225,27 @@ function normId(s){
   s = String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   let m = s.match(/^ORD(\d{1,10})$/);
   if(m) return ordId(m[1]);
-  m = s.match(/^SH(\d{3,10})$/);
-  if(m) return 'SH' + m[1];
-  if(/^\d{3,10}$/.test(s)) return 'SH' + s;
+  m = s.match(/^SH(\d{3,6})$/);
+  if(m) return 'SH' + m[1].padStart(6, '0');
+  if(/^\d{3,6}$/.test(s)) return 'SH' + s.padStart(6, '0');
   return null;
 }
 function extractId(text){
-  const m = String(text || '').toUpperCase().match(/(?<![A-Z])(ORD|SH)\s*-?\s*(\d{3,10})/);
-  if(m) return m[1] === 'ORD' ? ordId(m[2]) : 'SH' + m[2];
+  const t = String(text || '').toUpperCase();
+  let m = t.match(/(?<![A-Z])SH\s*-?\s*(\d{3,6})(?!\d)/);
+  if(m) return 'SH' + m[1].padStart(6, '0');
+  m = t.match(/(?<![A-Z])ORD\s*-?\s*(\d{3,10})/);
+  if(m) return ordId(m[1]);
   return normId(text);
 }
-// Reads an SH number out of OCR text, tolerating look-alike letters in the digits (O for 0, I for 1, ...).
+// Reads an SH number (SH + exactly 6 digits) out of OCR text, tolerating look-alike letters in the digits (O for 0, I for 1, ...).
 function idFromOcr(text){
   const t = String(text || '').toUpperCase();
-  const re = /(?<![A-Z0-9])S\s?H[\s:.#-]*([0-9OILSB|]{4,10})(?![A-Z0-9])/g;
+  const re = /(?<![A-Z0-9])S\s?H[\s:.#-]*([0-9OILSB|]{6})(?![A-Z0-9])/g;
   let m;
   while((m = re.exec(t))){
     const raw = m[1];
-    if((raw.match(/[0-9]/g) || []).length < 3) continue;
+    if((raw.match(/[0-9]/g) || []).length < 4) continue;
     return 'SH' + raw.replace(/O/g, '0').replace(/[IL|]/g, '1').replace(/S/g, '5').replace(/B/g, '8');
   }
   return null;
@@ -497,8 +500,8 @@ function orderSheet(id){
 function addSheet(pre){
   const st = pre.status || 'ready';
   return `<div class="sh-head"><h2>Add orders</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
-  <div class="hint">One order per line. Put the customer after the number if you like, e.g. <b>SH100245 Regina Public Schools</b>.</div>
-  <div class="field"><textarea id="addTxt" rows="5" placeholder="SH100245&#10;SH100246 U of R" autocapitalize="characters" spellcheck="false">${esc(pre.text || '')}</textarea></div>
+  <div class="hint">One order per line. Put the customer after the number if you like, e.g. <b>SH013194 Regina Public Schools</b>.</div>
+  <div class="field"><textarea id="addTxt" rows="5" placeholder="SH013194&#10;SH013195 U of R" autocapitalize="characters" spellcheck="false">${esc(pre.text || '')}</textarea></div>
   <div class="two">
     <div class="field"><label for="addStatus">Status</label><select id="addStatus">${ST.map(s => `<option value="${s.k}" ${s.k === st ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</select></div>
     <div class="field"><label for="addDate">Date it got there</label><input type="date" id="addDate" value="${today()}"></div>
